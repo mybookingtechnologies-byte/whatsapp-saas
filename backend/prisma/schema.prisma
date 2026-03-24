@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  users       User[]
+  contacts    Contact[]
+  campaigns   Campaign[]
+  payments    Payment[]
+  paymentSettings PaymentSettings?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  password       String
+  name           String?
+  role           Role     @default(USER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  messages       Message[]
+  approvedPayments Payment[] @relation("ApprovedPayments")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Contact {
+  id             String   @id @default(cuid())
+  name           String?
+  phone          String
+  email          String?
+  tags           String[]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  campaigns      Campaign[] @relation("ContactCampaigns")
+  messages       Message[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Campaign {
+  id             String   @id @default(cuid())
+  name           String
+  content        String
+  status         CampaignStatus @default(DRAFT)
+  scheduledAt    DateTime?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  contacts       Contact[] @relation("ContactCampaigns")
+
+  messages       Message[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String
+  direction   MessageDirection
+  status      MessageStatus @default(PENDING)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  contactId   String
+
+  contact     Contact  @relation(fields: [contactId], references: [id])
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  amount         Float
+  status         PaymentStatus @default(PENDING)
+  proofUrl       String?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  approvedById   String?
+  approvedBy     User?    @relation("ApprovedPayments", fields: [approvedById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PaymentSettings {
+  id             String   @id @default(cuid())
+  upiId          String
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+
+  updatedAt      DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+
+  COMPLETED
+  CANCELLED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+
+}
+
+enum MessageStatus {
+  PENDING
+
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
