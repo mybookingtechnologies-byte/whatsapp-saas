@@ -8,8 +8,15 @@ export class ContactsService {
 
   async createContact(data: Partial<Contact>, organizationId: string): Promise<Contact> {
     if (!data.phone) throw new BadRequestException('Phone is required');
+    if (!data.name) throw new BadRequestException('Name is required');
     return this.prisma.contact.create({
-      data: { ...data, organizationId },
+      data: {
+        name: data.name,
+        phone: data.phone,
+        email: data.email ?? null,
+        tags: data.tags ?? [],
+        organizationId,
+      },
     });
   }
 

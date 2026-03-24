@@ -7,12 +7,12 @@ export enum MessageDirection {
 
 export class SendMessageDto {
   @IsString()
-  content: string;
+  content!: string;
 
   @IsString()
-  contactId: string;
+  contactId!: string;
 
   @IsString()
   @IsEnum(MessageDirection)
-  direction: MessageDirection;
+  direction!: MessageDirection;
 }

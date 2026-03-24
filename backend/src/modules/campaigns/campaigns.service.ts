@@ -8,12 +8,19 @@ export class CampaignsService {
 
   async createCampaign(data: Partial<Campaign>, organizationId: string): Promise<Campaign> {
     if (!data.name) throw new BadRequestException('Name is required');
+    if (!data.content) throw new BadRequestException('Content is required');
     return this.prisma.campaign.create({
-      data: { ...data, organizationId },
+      data: {
+        name: data.name,
+        content: data.content,
+        organizationId,
+        status: data.status ?? 'DRAFT',
+        scheduledAt: data.scheduledAt ?? null,
+      },
     });
   }
 
-  async attachContacts(campaignId: string, contactIds: string[], organizationId: string): Promise<Campaign> {
+  async attachContacts(campaignId: string, contactIds: string[], organizationId: string): Promise<Campaign | null> {
     const campaign = await this.prisma.campaign.findFirst({ where: { id: campaignId, organizationId } });
     if (!campaign) throw new NotFoundException('Campaign not found');
     await this.prisma.campaign.update({

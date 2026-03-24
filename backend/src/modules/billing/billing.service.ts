@@ -7,8 +7,16 @@ export class BillingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createPayment(data: Partial<Payment>, organizationId: string): Promise<Payment> {
-    if (!data.amount) throw new BadRequestException('Amount required');
-    return this.prisma.payment.create({ data: { ...data, organizationId, status: 'PENDING' } });
+    if (typeof data.amount !== 'number') throw new BadRequestException('Amount required');
+    return this.prisma.payment.create({
+      data: {
+        amount: data.amount,
+        organizationId,
+        status: 'PENDING',
+        proofUrl: data.proofUrl ?? null,
+        approvedById: data.approvedById ?? null,
+      },
+    });
   }
 
   async uploadProof(paymentId: string, proofUrl: string, organizationId: string): Promise<Payment> {

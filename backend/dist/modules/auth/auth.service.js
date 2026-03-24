@@ -15,39 +15,11 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
-    function accept(f) { if (f !== void 0 && typeof f !== "function") throw new TypeError("Function expected"); return f; }
-    var kind = contextIn.kind, key = kind === "getter" ? "get" : kind === "setter" ? "set" : "value";
-    var target = !descriptorIn && ctor ? contextIn["static"] ? ctor : ctor.prototype : null;
-    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});
-    var _, done = false;
-    for (var i = decorators.length - 1; i >= 0; i--) {
-        var context = {};
-        for (var p in contextIn) context[p] = p === "access" ? {} : contextIn[p];
-        for (var p in contextIn.access) context.access[p] = contextIn.access[p];
-        context.addInitializer = function (f) { if (done) throw new TypeError("Cannot add initializers after decoration has completed"); extraInitializers.push(accept(f || null)); };
-        var result = (0, decorators[i])(kind === "accessor" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);
-        if (kind === "accessor") {
-            if (result === void 0) continue;
-            if (result === null || typeof result !== "object") throw new TypeError("Object expected");
-            if (_ = accept(result.get)) descriptor.get = _;
-            if (_ = accept(result.set)) descriptor.set = _;
-            if (_ = accept(result.init)) initializers.unshift(_);
-        }
-        else if (_ = accept(result)) {
-            if (kind === "field") initializers.unshift(_);
-            else descriptor[key] = _;
-        }
-    }
-    if (target) Object.defineProperty(target, contextIn.name, descriptor);
-    done = true;
-};
-var __runInitializers = (this && this.__runInitializers) || function (thisArg, initializers, value) {
-    var useValue = arguments.length > 2;
-    for (var i = 0; i < initializers.length; i++) {
-        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);
-    }
-    return useValue ? value : void 0;
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 var __importStar = (this && this.__importStar) || (function () {
     var ownKeys = function(o) {
@@ -66,82 +38,133 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {
-    if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
-    return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
+const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcryptjs"));
-const roles_enum_1 = require("../../common/constants/roles.enum");
-let AuthService = (() => {
-    let _classDecorators = [(0, common_1.Injectable)()];
-    let _classDescriptor;
-    let _classExtraInitializers = [];
-    let _classThis;
-    var AuthService = _classThis = class {
-        constructor(prisma, jwt) {
-            this.prisma = prisma;
-            this.jwt = jwt;
+const prisma_service_1 = require("../../prisma/prisma.service");
+const client_1 = require("@prisma/client");
+let AuthService = AuthService_1 = class AuthService {
+    constructor(prisma, jwtService) {
+        this.prisma = prisma;
+        this.jwtService = jwtService;
+    }
+    validatePasswordStrength(password) {
+        if (!AuthService_1.PASSWORD_REGEX.test(password)) {
+            throw new common_1.BadRequestException('Password must be at least 10 characters, include upper and lower case letters, a number, and a special character.');
         }
-        async validateUser(email, password) {
-            const user = await this.prisma.user.findUnique({ where: { email } });
-            if (!user || !(await bcrypt.compare(password, user.password))) {
-                throw new common_1.UnauthorizedException('Invalid credentials');
-            }
-            return user;
-        }
-        async login(email, password) {
-            const user = await this.validateUser(email, password);
-            // Try to get organizationId from user, fallback to query if missing
-            let organizationId = user.organizationId;
-            if (!organizationId) {
-                const org = await this.prisma.organization.findFirst({ where: { users: { some: { id: user.id } } } });
-                organizationId = org?.id;
-            }
-            const payload = { sub: user.id, role: user.role, organizationId };
-            return {
-                access_token: this.jwt.sign(payload),
-                user: { ...user, organizationId },
-            };
-        }
-        async register(data) {
-            const exists = await this.prisma.user.findUnique({ where: { email: data.email } });
-            if (exists)
-                throw new common_1.BadRequestException('Email already registered');
-            const org = await this.prisma.organization.create({
-                data: {
-                    name: data.organizationName,
-                    users: {
-                        create: [{
-                                email: data.email,
-                                password: await bcrypt.hash(data.password, 10),
-                                name: data.name,
-                                role: roles_enum_1.Role.ADMIN,
-                            }],
-                    },
+    }
+    async hashPassword(password) {
+        return bcrypt.hash(password, 12);
+    }
+    async comparePassword(password, hash) {
+        return bcrypt.compare(password, hash);
+    }
+    buildJwtPayload(user) {
+        return {
+            sub: user.id,
+            role: user.role,
+            organizationId: user.organizationId,
+        };
+    }
+    async generateTokens(user) {
+        const payload = this.buildJwtPayload(user);
+        const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+        return { accessToken, refreshToken };
+    }
+    sanitizeUser(user) {
+        // Remove sensitive fields
+        const { password, ...rest } = user;
+        return rest;
+    }
+    async login(dto) {
+        const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+        if (!user)
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        const valid = await this.comparePassword(dto.password, user.password);
+        if (!valid)
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        const tokens = await this.generateTokens({ id: user.id, role: user.role, organizationId: user.organizationId });
+        return {
+            success: true,
+            data: {
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+                user: this.sanitizeUser({ ...user, organizationId: user.organizationId }),
+            },
+        };
+    }
+    async register(dto) {
+        this.validatePasswordStrength(dto.password);
+        const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
+        if (exists)
+            throw new common_1.BadRequestException('Email already registered');
+        const hashedPassword = await this.hashPassword(dto.password);
+        const organization = await this.prisma.organization.create({
+            data: {
+                name: dto.organizationName,
+                users: {
+                    create: [{
+                            email: dto.email,
+                            password: hashedPassword,
+                            name: dto.name,
+                            role: client_1.$Enums.Role.ADMIN,
+                        }],
                 },
-                include: { users: true },
-            });
-            const user = org.users[0];
-            // Attach organizationId to user for payload
-            const userWithOrg = { ...user, organizationId: org.id };
-            const payload = { sub: userWithOrg.id, role: userWithOrg.role, organizationId: userWithOrg.organizationId };
+            },
+            include: { users: true },
+        });
+        const user = organization.users[0];
+        const tokens = await this.generateTokens({ id: user.id, role: user.role, organizationId: organization.id });
+        return {
+            success: true,
+            data: {
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+                user: this.sanitizeUser({ ...user, organizationId: organization.id }),
+            },
+        };
+    }
+    async refreshToken(dto) {
+        try {
+            const payload = this.jwtService.verify(dto.refreshToken);
+            const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+            if (!user)
+                throw new common_1.UnauthorizedException('Invalid refresh token');
+            // Optionally: check if user is active, not banned, etc.
+            const tokens = await this.generateTokens({ id: user.id, role: user.role, organizationId: user.organizationId });
             return {
-                access_token: this.jwt.sign(payload),
-                user: userWithOrg,
+                success: true,
+                data: {
+                    accessToken: tokens.accessToken,
+                    refreshToken: tokens.refreshToken,
+                    user: this.sanitizeUser({ ...user, organizationId: user.organizationId }),
+                },
             };
         }
-    };
-    __setFunctionName(_classThis, "AuthService");
-    (() => {
-        const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(null) : void 0;
-        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
-        AuthService = _classThis = _classDescriptor.value;
-        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
-        __runInitializers(_classThis, _classExtraInitializers);
-    })();
-    return AuthService = _classThis;
-})();
+        catch {
+            throw new common_1.ForbiddenException('Invalid or expired refresh token');
+        }
+    }
+    async logout() {
+        // For stateless JWT, logout is handled client-side by deleting tokens.
+        // Optionally, implement token blacklist here if needed.
+        return {
+            success: true,
+            data: null,
+        };
+    }
+};
 exports.AuthService = AuthService;
+AuthService.PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{10,}$/;
+exports.AuthService = AuthService = AuthService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        jwt_1.JwtService])
+], AuthService);

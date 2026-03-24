@@ -1,5 +1,5 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import * as helmet from 'helmet';
+import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 
 @Injectable()

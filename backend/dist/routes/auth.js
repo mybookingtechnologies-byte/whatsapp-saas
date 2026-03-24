@@ -27,10 +27,15 @@ router.post('/register', async (req, res) => {
         if (existing)
             return res.status(409).json({ message: 'Email already registered' });
         const hash = await bcrypt_1.default.hash(data.password, 10);
-        const user = await prisma.user.create({
-            data: { email: data.email, password: hash, name: data.name },
+        // Create organization first
+        const org = await prisma.organization.create({
+            data: { name: data.name || data.email }
         });
-        res.status(201).json({ id: user.id, email: user.email });
+        // Create user with organizationId
+        const user = await prisma.user.create({
+            data: { email: data.email, password: hash, name: data.name, organizationId: org.id },
+        });
+        res.status(201).json({ id: user.id, email: user.email, organizationId: org.id });
     }
     catch (err) {
         res.status(400).json({ message: err instanceof Error ? err.message : 'Invalid input' });

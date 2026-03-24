@@ -1,10 +1,13 @@
-# Node.js + Prisma + PostgreSQL
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json* .
+COPY package*.json ./
 RUN npm install --production=false
 COPY . .
-RUN npx prisma generate
 RUN npm run build
-EXPOSE 4000
-CMD ["npm", "run", "start"]
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+COPY --from=builder /app .
+RUN npm install --production --ignore-scripts --prefer-offline
+EXPOSE 5000
+CMD ["npm", "run", "start:prod"]

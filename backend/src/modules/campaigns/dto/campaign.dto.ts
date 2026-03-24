@@ -2,10 +2,10 @@ import { IsString, IsOptional, IsArray, IsDateString } from 'class-validator';
 
 export class CreateCampaignDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsString()
-  content: string;
+  content!: string;
 
   @IsArray()
   @IsOptional()
@@ -14,10 +14,10 @@ export class CreateCampaignDto {
 
 export class AttachContactsDto {
   @IsArray()
-  contactIds: string[];
+  contactIds!: string[];
 }
 
 export class ScheduleCampaignDto {
   @IsDateString()
-  scheduledAt: string;
+  scheduledAt!: string;
 }
